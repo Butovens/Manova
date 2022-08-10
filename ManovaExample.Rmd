@@ -1,0 +1,95 @@
+---
+title: "Butovens Médé"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+```{r}
+library(tidyverse)
+library(psych)
+```
+
+```{r}
+## Loading the data
+spiritData <- read.table(file.choose(), header =T)
+
+attach(spiritData)
+# Inspecting the data
+names(spiritData) # Look at variable names (if any)
+dim(spiritData) # Look at dimension of the data
+str(spiritData) # Look at structure of dataset
+head(spiritData) # Look at first few rows
+tail(spiritData) # Look at last few rows
+sum(is.na(spiritData)) # Check for missing values
+
+spiritData$student <- factor(spiritData$student) # change categorical variable to factor
+
+summary(spiritData) # get summary of the data
+```
+### 1
+#### Conceptual discussion about link between univariate and multivariate ANOVA
+
+##### Similarities between models 
+MANOVA is an extension of ANOVA. They both can be used for repeated measures, and are both about the group means as opposed to individual subject differences (or individual growth curves/ subject specific trends).
+
+The similar assumptions underlying both models:
+* They assume the outcome variable(s) to be interval measurements 
+
+* They also assume normally distributed errors that are homogenous across groups. 
+*Note: In some case these can be brought by using transformation e.g. nat.log etc…*  
+
+* Time points are assumed to be fixed across subjects (evenly or unevenly spaced) and they are treated as classification variable. Thus we cannot have different subjects that are measured with time points that are different
+* They both rely on least-squares estimation, thus they are affected by outliers and missing data
+* ANOVA and MANOVA are well understood, well-developed statistical methodologies based on simple noniterative calculations. 
+
+####Difference between models:
+* MANOVA cannot have unbalanced design while ANOVA can
+* MANOVA cannot handle missing data so those need to be remove from the data
+* ANOVA (is restricted to) or assumes sphericity/compound symmetry (i.e.  equal variances and covariances over time). 
+*Note: This is unrealistic given that in most cases variance tend to increase with time and correlation between time points tend to decrease as with increasing intervals in time. If CS violated iin ANOVA, it induced model misspecification and we have to use MANOVA or need to conduct some correction. Hovever, if CS holds then by definition we meet sphericity, and we can trust (be confident) in our F-test results*
+* MANOVA makes no assumptions about the specific form of the variance-covariance structure for the outcome variable(s). It assumes a general form for the correlation of repeated-measurement over time.
+* In ANOVA, the denominator for F-statistic is MSE, whereas the denominator for F-statistic in multivariate set up (testing univariate outcomes) is SSCP (sum of squares cross product matrix). 
+*Note: Because MANOVA has a completer analysis view, it requires that data be complete for all subjects, which will lead to bias as the composition of subjects at end of study will be less random than the compositions of subjects at the beginning. This assumption violated in most cases.*
+
+
+### 2
+#### MANOVA on data
+```{r}
+## Testing for multivariate significance
+Y_spirit <- cbind(time1,time2,time3,time4) # creating multivariate outcomes
+fit <- manova(Y_spirit ~ student) # running the manova 
+summary(fit, test = "Pillai") # conducting 4 main multivariate tests
+summary(fit, test = "Wilks")
+summary(fit, test = "Hotelling-Lawley")
+summary(fit, test = "Roy")
+
+## Testing at the univariate level within the MANOVA
+summary.aov(fit)
+describeBy(spiritData,student) # time point means by group membership
+```
+* Here we have two groups (i.e. undergraduate and graduates) students whose measures of 'school spririt' are being compared on four different occasions (i.e. 4 different years). First we need to conduct a multivariate test to see if we have significance in the interaction term (i.e. the multivariate term we are interested in: Group x Time). Here the multiple multivariate tests for MANOVA (i.e. Pillai’s trace, Wilks lambda, Hotelling-Lawley and Roy’s largest root) fully agree and show significant multivariate F. Thus, the group effect is significant at the multivariate test level. Because the overall multivariate F test is significant, it also means that sphericity holds (i.e. all variances of the pairwise differences across time are equal in the population that we sampled from)
+
+* After lookin at the multivariate test, we can now look at the univariate test to see if we have group differences at the different time points (i.e. t=1,t=2,t=3,t=4). The results of the univariate analysis in the multivariate set up shows that there are gorup differences at all the time points considered. 
+
+* As there is only two groups here, no other pairwise comparison is necessary.
+
+### 3
+#### Run each individual time point separately through the univariate analysis of variance function
+```{r}
+## Running Anova on each of the time point (i.e. 1,2,3 and 4)
+spiritData_aov1 <- aov(time1 ~ student, data = spiritData)
+spiritData_aov2 <- aov(time2 ~ student, data = spiritData)
+spiritData_aov3 <- aov(time3 ~ student, data = spiritData)
+spiritData_aov4 <- aov(time4 ~ student, data = spiritData)
+
+## Summary for each of the time points
+summary(spiritData_aov1)
+summary(spiritData_aov2)
+summary(spiritData_aov3)
+summary(spiritData_aov4)
+```
+The results from the ANOVA ran on each of the time point is very similar to what we found for the univariate analysis within the multivariate set up. Because the sphericity test held when we run the various multivariate tests, we can be confident in our F statistic results. Here, I think it may be better to run the analysis with the regular ANOVA as opposed to a MANOVA; First because sphericity holds so we may not need to use MANOVA (which decreases our power because of the way the degrees of freedom is computed in the F-test), and second we have an unbalanced design with more graduate students than undergraduates. It is not recommended to have an unbalanced design in a MANOVA. Desptie the data set being complete an ANOVA would be better suited for this analysis.
+
+
+
